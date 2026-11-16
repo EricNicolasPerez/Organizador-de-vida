@@ -70,23 +70,47 @@ function removePending(store: KeyValueStore, clientId: string): void {
   store.set(PENDING_KEY, JSON.stringify(listPending(store).filter((d) => d.clientId !== clientId)));
 }
 
-/** Uploads each pending session; removes it only after its upload resolves. */
+const FAILED_KEY = "atlas.failedSessions";
+
+export function listFailed(store: KeyValueStore): SessionDraft[] {
+  const list = readJson<unknown>(store, FAILED_KEY, []);
+  return Array.isArray(list) ? (list as SessionDraft[]) : [];
+}
+
+export function dismissFailed(store: KeyValueStore, clientId: string): void {
+  store.set(FAILED_KEY, JSON.stringify(listFailed(store).filter((d) => d.clientId !== clientId)));
+}
+
+export type FlushOutcome = "uploaded" | "failed" | "rejected";
+
+/**
+ * Uploads each pending session; removes it only after its upload resolves.
+ * Errors for which `isPermanent` returns true (the server refused the data) move the
+ * session to a failed list so it stops blocking the queue; other errors keep it pending.
+ */
 export async function flushPending(
   store: KeyValueStore,
   upload: (d: SessionDraft) => Promise<void>,
-): Promise<{ uploaded: number; failed: number }> {
-  let uploaded = 0;
-  let failed = 0;
+  isPermanent: (error: unknown) => boolean = () => false,
+): Promise<{ uploaded: number; failed: number; rejected: number; results: Record<string, FlushOutcome> }> {
+  const results: Record<string, FlushOutcome> = {};
   for (const d of listPending(store)) {
     try {
       await upload(d);
       removePending(store, d.clientId);
-      uploaded++;
-    } catch {
-      failed++;
+      results[d.clientId] = "uploaded";
+    } catch (e) {
+      if (isPermanent(e)) {
+        removePending(store, d.clientId);
+        store.set(FAILED_KEY, JSON.stringify([...listFailed(store).filter((x) => x.clientId !== d.clientId), d]));
+        results[d.clientId] = "rejected";
+      } else {
+        results[d.clientId] = "failed";
+      }
     }
   }
-  return { uploaded, failed };
+  const count = (o: FlushOutcome) => Object.values(results).filter((r) => r === o).length;
+  return { uploaded: count("uploaded"), failed: count("failed"), rejected: count("rejected"), results };
 }
 
 /** Adapter over window.localStorage that never throws (private mode, quota). */

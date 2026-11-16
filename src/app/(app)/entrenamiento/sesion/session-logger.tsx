@@ -12,11 +12,15 @@ import type { Exercise } from "@/lib/training/queries";
 import type { Measure } from "@/lib/training/types";
 import { localToday } from "@/lib/dates";
 import { createExercise } from "../actions";
+import { formatSetValue, parseSetInput } from "@/lib/training/set-input";
 
 export async function uploadSession(d: SessionDraft) {
   const { error } = await createClient().rpc("save_workout_session", { payload: d });
-  if (error) throw error;
+  // SQLSTATE class 22 (bad data) and 23 (integrity, e.g. a deleted exercise) will never succeed on retry.
+  if (error) throw Object.assign(new Error(error.message), { permanent: /^2[23]/.test(error.code ?? "") });
 }
+
+export const isPermanentUploadError = (e: unknown) => (e as { permanent?: boolean })?.permanent === true;
 
 const FIELDS: Record<Measure, { key: keyof DraftSet; label: string; mode: "numeric" | "decimal" }[]> = {
   reps_weight: [{ key: "reps", label: "Reps", mode: "numeric" }, { key: "weightKg", label: "Kg", mode: "decimal" }],
@@ -37,7 +41,7 @@ export function SessionLogger({
   const router = useRouter();
   const [draft, setDraft] = useState<SessionDraft | null>(null);
   const [resumed, setResumed] = useState(false);
-  const [status, setStatus] = useState<"idle" | "saving" | "offline">("idle");
+  const [status, setStatus] = useState<"idle" | "saving" | "offline" | "rejected">("idle");
   const [adding, setAdding] = useState(false);
 
   // Load (or create) the draft once on the client; localStorage is not available on the server.
@@ -77,9 +81,14 @@ export function SessionLogger({
     const cleaned = { ...draft, exercises: draft.exercises.filter((e) => e.sets.length > 0) };
     enqueuePending(store, cleaned);
     clearDraft(store);
-    const { failed } = await flushPending(store, uploadSession);
-    if (failed > 0) {
+    const { results } = await flushPending(store, uploadSession, isPermanentUploadError);
+    const outcome = results[cleaned.clientId];
+    if (outcome === "failed") {
       setStatus("offline");
+      return;
+    }
+    if (outcome === "rejected") {
+      setStatus("rejected");
       return;
     }
     router.push(`/entrenamiento/historial/${cleaned.date}`);
@@ -92,6 +101,15 @@ export function SessionLogger({
         <p className="text-lg font-semibold">Guardado en el celular</p>
         <p className="text-sm text-muted">No hay conexión. Tu sesión quedó guardada y se subirá sola cuando vuelva la señal.</p>
         <button className="btn-primary" onClick={() => { router.push("/entrenamiento"); }}>Listo</button>
+      </div>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <div className="card flex flex-col gap-3">
+        <p className="text-lg font-semibold">No se pudo guardar la sesión</p>
+        <p className="text-sm text-muted">El servidor rechazó los datos (por ejemplo, un ejercicio que ya no existe). La sesión quedó guardada en el celular como &quot;no subida&quot;.</p>
+        <button className="btn-primary" onClick={() => { router.push("/entrenamiento"); }}>Volver</button>
       </div>
     );
   }
@@ -115,31 +133,24 @@ export function SessionLogger({
       )}
 
       {draft.exercises.map((ex, ei) => (
-        <section key={`${ex.exerciseId}-${ei}`} className="card flex flex-col gap-2">
+        <section key={`${ex.exerciseId}-${ei}-${draft.exercises.length}`} className="card flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">{ex.name}</h2>
             <button aria-label={`Quitar ${ex.name}`} className="text-muted"
               onClick={() => update((d) => ({ ...d, exercises: d.exercises.filter((_, i) => i !== ei) }))}>✕</button>
           </div>
           {ex.sets.map((set, si) => (
-            <div key={si} className="flex items-center gap-2">
+            <div key={`${si}-${ex.sets.length}`} className="flex items-center gap-2">
               <span className="w-6 text-center text-sm text-muted">{si + 1}</span>
               {FIELDS[ex.measure].map((f) => (
-                <label key={f.key} className="flex flex-1 items-center gap-1">
-                  <input
-                    inputMode={f.mode}
-                    aria-label={`${f.label} serie ${si + 1}`}
-                    value={set[f.key] ?? ""}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(",", ".");
-                      const v = raw === "" ? null : Number(raw);
-                      if (v != null && (Number.isNaN(v) || v < 0)) return;
-                      update((d) => { d.exercises[ei].sets[si][f.key] = v; return d; });
-                    }}
-                    className="input py-2 text-center tabular-nums"
-                  />
-                  <span className="text-xs text-muted">{f.label}</span>
-                </label>
+                <SetField
+                  key={f.key}
+                  label={f.label}
+                  ariaLabel={`${f.label} serie ${si + 1}`}
+                  mode={f.mode}
+                  value={set[f.key]}
+                  onValue={(v) => update((d) => { d.exercises[ei].sets[si][f.key] = v; return d; })}
+                />
               ))}
               <button aria-label={`Quitar serie ${si + 1}`} className="px-1 text-muted"
                 onClick={() => update((d) => { d.exercises[ei].sets.splice(si, 1); return d; })}>−</button>
@@ -208,5 +219,36 @@ function AddExercise({ library, onAdd, onCancel }: {
         }}>Agregar</button>
       </div>
     </div>
+  );
+}
+
+/** Keeps the raw text the user types ("22,") and reports the parsed number upward. */
+function SetField({ label, ariaLabel, mode, value, onValue }: {
+  label: string;
+  ariaLabel: string;
+  mode: "numeric" | "decimal";
+  value: number | null;
+  onValue: (v: number | null) => void;
+}) {
+  const kind = mode === "numeric" ? "integer" : "decimal";
+  const [text, setText] = useState(() => formatSetValue(value));
+  const parsed = parseSetInput(text, kind);
+  return (
+    <label className="flex flex-1 items-center gap-1">
+      <input
+        inputMode={mode}
+        aria-label={ariaLabel}
+        aria-invalid={parsed === undefined}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const v = parseSetInput(e.target.value, kind);
+          if (v !== undefined) onValue(v);
+        }}
+        onBlur={() => { if (parsed !== undefined) setText(formatSetValue(parsed)); }}
+        className={`input py-2 text-center tabular-nums ${parsed === undefined ? "border-danger" : ""}`}
+      />
+      <span className="text-xs text-muted">{label}</span>
+    </label>
   );
 }
