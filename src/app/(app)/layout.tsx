@@ -2,6 +2,7 @@ import { BottomNav } from "./bottom-nav";
 import { signOut } from "../login/actions";
 import { QuickAdd } from "@/components/quick-add";
 import { getAccountsAndCategories } from "@/lib/finance/queries";
+import { PendingSync } from "@/components/pending-sync";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { accounts, categories } = await getAccountsAndCategories();
@@ -15,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       {children}
       <QuickAdd accounts={accounts} categories={categories} />
+      <PendingSync />
       <BottomNav />
     </div>
   );
