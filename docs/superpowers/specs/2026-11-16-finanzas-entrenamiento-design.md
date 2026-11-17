@@ -55,6 +55,7 @@ El usuario eligió el 1 porque la va a usar a diario y la quiere vender.
 
 ### Cuenta y acceso
 - Registro e inicio de sesión con email y contraseña (Supabase Auth).
+- En v1 el registro está cerrado: solo el dueño tiene cuenta. El registro abierto, con confirmación de email y recuperación de contraseña, se activa al decidir vender. *(Decisión del builder.)*
 - Cada fila de datos pertenece a un usuario. Las políticas de seguridad de la base (RLS) impiden ver datos ajenos.
 
 ### Inicio (panel)
@@ -65,11 +66,18 @@ Una pantalla con dos tarjetas:
 La navegación inferior tiene: Inicio · Finanzas · Entrenamiento (con espacio para módulos futuros).
 
 ### Finanzas
-- **Cuentas:** dónde está la plata (por ejemplo Efectivo, Banco, Mercado Pago). Cada una tiene un saldo inicial. El saldo actual es el saldo inicial más los ingresos, menos los gastos, más o menos las transferencias.
-- **Movimientos:** gasto, ingreso o transferencia entre cuentas. Cada uno tiene monto, cuenta, categoría (no aplica a transferencias), fecha (por defecto hoy) y una nota opcional.
+- **Monedas:** pesos (ARS) y dólares (USD). Cada cuenta tiene una sola moneda. *(Decisión del usuario.)*
+- **Cuentas:** dónde está la plata (por ejemplo Efectivo, Banco, Mercado Pago, Dólares). Cada una tiene una moneda, un tipo (**disponible** o **tarjeta de crédito**) y un saldo inicial. El saldo actual es el saldo inicial más los ingresos, menos los gastos, más o menos las transferencias.
+- **Disponible por moneda:** el panel muestra el total en ARS y el total en USD por separado. Solo suma las cuentas de tipo disponible. No hay conversión entre monedas en v1. *(Decisión del builder: evita depender de una cotización.)*
+- **Tarjetas de crédito** *(el usuario las usa)*:
+  - Un gasto con tarjeta se registra el día de la compra y cuenta en el resumen mensual de gastos.
+  - Ese gasto **no** baja el disponible: aumenta la deuda de la tarjeta. El panel muestra aparte "Debés en tarjetas: $X".
+  - **Pagar la tarjeta** es una transferencia de una cuenta disponible a la tarjeta. Baja el disponible y la deuda, y **no** cuenta como gasto (así no se cuenta dos veces).
+  - Una tarjeta tiene moneda ARS en v1. Los consumos en dólares con tarjeta quedan para más adelante. *(Decisión del builder.)*
+- **Movimientos:** gasto, ingreso o transferencia entre cuentas. Cada uno tiene monto, cuenta, categoría (no aplica a transferencias), fecha (por defecto hoy) y una nota opcional. Una transferencia entre cuentas de distinta moneda (comprar o vender dólares) guarda los dos montos: el que sale y el que entra.
 - **Registro rápido:** un botón "+" siempre visible abre un formulario corto. Primero se escribe el monto y se elige gasto o ingreso; la cuenta y la categoría vienen precargadas con la última usada.
 - **Categorías:** vienen precargadas (Comida, Transporte, Casa, Servicios, Salud, Ocio, Compras, Otros; para ingresos, Sueldo y Otros) y se pueden editar.
-- **Resumen mensual:** total de ingresos y gastos, el balance, y gastos por categoría en barras simples. Se puede navegar entre meses.
+- **Resumen mensual:** separado por moneda; total de ingresos y gastos, el balance, y gastos por categoría en barras simples. Se puede navegar entre meses.
 - **Ajuste de saldo:** si el saldo de la app no coincide con la realidad, el usuario ingresa el saldo real y se crea un movimiento de ajuste por la diferencia.
 - **Lista de movimientos:** filtrable por mes y cuenta. Cada movimiento se puede editar y borrar.
 
@@ -77,7 +85,9 @@ La navegación inferior tiene: Inicio · Finanzas · Entrenamiento (con espacio 
 - **Ejercicios:** una biblioteca propia del usuario, solo con nombre y un grupo muscular opcional. Se pueden crear al vuelo mientras se arma una rutina.
 - **Rutinas:** tienen nombre y una lista ordenada de días (por ejemplo "Día A – Pecho/Tríceps"). Cada día tiene ejercicios ordenados, con series y repeticiones objetivo, y peso de referencia opcional. Solo una rutina está activa a la vez.
 - **Qué toca hoy:** la rutina rota. El día que toca es el siguiente al último registrado en la rutina activa; después del último día vuelve al primero. Si no hay sesiones, toca el primer día. El usuario puede elegir otro día manualmente.
-- **Registrar sesión:** se parte del día que toca, con los ejercicios precargados y los valores de la última vez como referencia. Se cargan repeticiones y peso por serie, y se pueden agregar o quitar series y ejercicios. La sesión se guarda con su fecha.
+- **Registrar sesión:** se parte del día que toca, con los ejercicios precargados y los valores de la última vez como referencia. Se pueden agregar o quitar series y ejercicios, y la sesión se guarda con su fecha.
+  - Cada serie admite repeticiones y peso, o tiempo o distancia (por ejemplo plancha o cardio). Cada ejercicio indica qué tipo de medida usa. *(Decisión del builder.)*
+- **Sin señal** *(decisión del usuario)*: mientras se carga, la sesión en curso se guarda en el celular, así no se pierde aunque se corte la señal o se cierre la app. Se sube a la nube al tocar "Terminar". Si al terminar no hay conexión, queda pendiente y se reintenta sola. El resto de la app requiere conexión en v1.
 - **Historial:** un calendario o lista por fecha. Al tocar un día se ve la sesión completa.
 
 ## Decisiones de cómo construirlo
