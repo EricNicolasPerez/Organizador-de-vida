@@ -9,6 +9,10 @@ import { CuentasScreen } from "./screens/cuentas";
 import { CategoriasScreen } from "./screens/categorias";
 import { MovimientoScreen } from "./screens/movimiento";
 import { EntrenamientoScreen } from "./screens/entrenamiento";
+import { RutinasScreen } from "./screens/rutinas";
+import { RutinaScreen } from "./screens/rutina";
+import { SesionScreen } from "./screens/sesion";
+import { HistorialScreen } from "./screens/historial";
 
 function Screen({ path, query }: { path: string; query: Record<string, string> }) {
   let p: Record<string, string> | null;
@@ -17,7 +21,11 @@ function Screen({ path, query }: { path: string; query: Record<string, string> }
   if (path === "/finanzas/cuentas") return <CuentasScreen />;
   if (path === "/finanzas/categorias") return <CategoriasScreen />;
   if ((p = matchRoute("/finanzas/movimiento/:id", path))) return <MovimientoScreen id={p.id} />;
-  if (path.startsWith("/entrenamiento")) return <EntrenamientoScreen />;
+  if (path === "/entrenamiento") return <EntrenamientoScreen />;
+  if (path === "/entrenamiento/rutinas") return <RutinasScreen />;
+  if ((p = matchRoute("/entrenamiento/rutinas/:id", path))) return <RutinaScreen id={p.id} />;
+  if (path === "/entrenamiento/sesion") return <SesionScreen query={query} />;
+  if ((p = matchRoute("/entrenamiento/historial/:date", path))) return <HistorialScreen date={p.date} />;
   return <p className="text-muted">Página no encontrada. <a href={href("/")} className="text-accent">Ir al inicio</a></p>;
 }
 
