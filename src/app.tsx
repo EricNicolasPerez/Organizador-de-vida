@@ -13,6 +13,7 @@ import { RutinasScreen } from "./screens/rutinas";
 import { RutinaScreen } from "./screens/rutina";
 import { SesionScreen } from "./screens/sesion";
 import { HistorialScreen } from "./screens/historial";
+import { AjustesScreen } from "./screens/ajustes";
 
 function Screen({ path, query }: { path: string; query: Record<string, string> }) {
   let p: Record<string, string> | null;
@@ -26,6 +27,7 @@ function Screen({ path, query }: { path: string; query: Record<string, string> }
   if ((p = matchRoute("/entrenamiento/rutinas/:id", path))) return <RutinaScreen id={p.id} />;
   if (path === "/entrenamiento/sesion") return <SesionScreen query={query} />;
   if ((p = matchRoute("/entrenamiento/historial/:date", path))) return <HistorialScreen date={p.date} />;
+  if (path === "/ajustes") return <AjustesScreen />;
   return <p className="text-muted">Página no encontrada. <a href={href("/")} className="text-accent">Ir al inicio</a></p>;
 }
 
