@@ -1,5 +1,5 @@
 import { parseAmount } from "../money";
-import { toDecimal } from "./mappers";
+import { toDecimal } from "../money";
 import type { Account } from "./types";
 
 export interface MovementInsert {
