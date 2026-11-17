@@ -1,26 +1,32 @@
 # Organizador
 
-Toda tu vida, un solo sistema. Módulos v1: **Finanzas** y **Entrenamiento**.
+Toda tu vida, un solo sistema. Módulos: **Finanzas** y **Entrenamiento**.
 
-Stack: Next.js 16 · Supabase (Postgres + Auth) · Tailwind CSS 4 · Vitest.
+Un solo link, sin cuentas ni configuración. Los datos se guardan en tu celular.
 
-## Puesta en marcha
+## Usarla
 
-1. Creá un proyecto gratis en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, ejecutá en orden los archivos de `supabase/migrations/`.
-3. En **Authentication → Sign In / Providers**, desactivá *Allow new users to sign up* (en v1 el registro está cerrado).
-4. En **Authentication → Users → Add user**, creá tu usuario (email + contraseña, marcá *Auto confirm*).
-5. Copiá `.env.example` a `.env.local` y completá `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (en **Project Settings → API**).
-6. `pnpm install` y `pnpm dev`. Abrí http://localhost:3000.
+1. Abrí **https://ericnicolasperez.github.io/Organizador-de-vida/** en el celular.
+2. Agregala a la pantalla de inicio (en iPhone: Compartir → *Agregar a inicio*; en Android: menú → *Instalar app*).
+3. Listo. Funciona también sin señal.
 
-## Publicar
+## Copia de seguridad
 
-Importá el repositorio en Vercel y cargá las dos variables de entorno. Desde el celular, abrí la URL y elegí *Agregar a pantalla de inicio*.
+Los datos viven solo en este dispositivo. En **Ajustes → Hacer copia** descargás un archivo con todo; con **Restaurar** lo cargás en otro celular. Hacé una copia cada tanto.
 
-## Pruebas
+## Publicación (una sola vez)
+
+La app se publica sola desde la rama `main` con GitHub Actions. La primera vez, en el repositorio: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+## Desarrollo
+
+```bash
+pnpm install
+pnpm dev
+```
 
 ```bash
 pnpm test
 ```
 
-Las pruebas de base de datos corren con PGlite (Postgres en memoria): no necesitan Supabase.
+La versión anterior con nube (Next.js + Supabase) quedó en la rama `v1-supabase`.

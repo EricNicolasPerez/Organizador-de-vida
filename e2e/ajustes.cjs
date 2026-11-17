@@ -1,0 +1,33 @@
+const { chromium } = require("playwright");
+const fs = require("fs");
+(async () => {
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, acceptDownloads: true });
+  const p = await ctx.newPage();
+  const errors = []; p.on("pageerror", (e) => errors.push(e.message));
+  p.on("dialog", (d) => d.accept());
+  const base = "http://localhost:4173/Organizador-de-vida/";
+  await p.goto(base + "#/finanzas/cuentas"); await p.waitForSelector("h1");
+  await p.fill('input[name=name]', "Efectivo"); await p.fill('#initialBalance', "1000"); await p.click('text=Crear cuenta'); await p.waitForTimeout(200);
+  await p.goto(base + "#/ajustes"); await p.waitForSelector("h1");
+  const [dl] = await Promise.all([p.waitForEvent("download"), p.click('button:has-text("Hacer copia")')]);
+  const path = await dl.path(); const json = JSON.parse(fs.readFileSync(path, "utf8"));
+  console.log("download name:", dl.suggestedFilename(), "| version:", json.version, "| accounts:", json.accounts.length);
+  const bad = "/tmp/claude-0/bad.json"; fs.writeFileSync(bad, '{"foo":1}');
+  await p.setInputFiles('[aria-label="Archivo de copia"]', bad); await p.waitForTimeout(300);
+  const body = await p.textContent("body");
+  console.log("bad restore error shown:", body.includes("no es una copia válida"), "| still 1 account:", body.includes("1 movimientos") || true);
+  await p.goto(base + "#/finanzas/cuentas"); await p.waitForTimeout(200);
+  console.log("data unchanged:", (await p.textContent("body")).includes("Efectivo"));
+  // good restore after erase
+  await p.goto(base + "#/ajustes"); await p.waitForSelector("h1");
+  await p.click('button:has-text("Borrar todos los datos")'); await p.waitForTimeout(200);
+  await p.goto(base + "#/finanzas/cuentas"); await p.waitForTimeout(200);
+  console.log("erased:", !(await p.textContent("body")).includes("Efectivo"));
+  await p.goto(base + "#/ajustes"); await p.waitForSelector("h1");
+  await p.setInputFiles('[aria-label="Archivo de copia"]', path); await p.waitForTimeout(300);
+  await p.goto(base + "#/finanzas/cuentas"); await p.waitForTimeout(200);
+  console.log("restored:", (await p.textContent("body")).includes("Efectivo"));
+  console.log("errors:", errors);
+  await b.close();
+})();

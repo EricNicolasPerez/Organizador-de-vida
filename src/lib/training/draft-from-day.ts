@@ -1,5 +1,4 @@
-import type { DraftSet, SessionDraft } from "./session-draft";
-import type { Measure } from "./types";
+import type { DraftSet, Measure, SessionDraft } from "./types";
 
 export interface DayExercise {
   exerciseId: string;

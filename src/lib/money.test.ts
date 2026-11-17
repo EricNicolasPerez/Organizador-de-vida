@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formatMoney, parseAmount } from "./money";
+import { formatMoney, parseAmount, toDecimal } from "./money";
 
 describe("parseAmount", () => {
   test.each([
@@ -23,4 +23,9 @@ describe("parseAmount", () => {
 test("formatMoney uses Argentine format", () => {
   expect(formatMoney(123450, "ARS")).toContain("1.234,50");
   expect(formatMoney(-5000, "USD")).toContain("50,00");
+});
+
+test("toDecimal renders cents for decimal strings", () => {
+  expect(toDecimal(123450)).toBe("1234.50");
+  expect(toDecimal(-5)).toBe("-0.05");
 });
