@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { href, navigate } from "@/router";
 import { getData, update, useData } from "@/store/store";
 import type { Exercise } from "@/store/types";
@@ -32,15 +32,12 @@ export function SesionScreen({ query }: { query: Record<string, string> }) {
   const dayId = query.dia || null;
   const [adding, setAdding] = useState(false);
 
-  // The draft lives in the store so it is persisted on every change and included in backups.
+  // A draft is only persisted (and therefore "resumable") once the user edits something.
+  // Until then the screen shows a fresh, in-memory proposal, so just looking at the day leaves no trace.
   const resumed = data.draft != null;
-  const draft = useMemo(() => {
-    if (data.draft) return data.draft;
-    const fresh = newDraft(dayId);
-    queueMicrotask(() => update((d) => (d.draft ? d : setDraft(d, fresh.draft))));
-    return fresh.draft;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.draft, dayId]);
+  const [fresh, setFresh] = useState(() => newDraft(dayId).draft);
+  useEffect(() => { if (!data.draft) setFresh(newDraft(dayId).draft); }, [dayId, data.draft]);
+  const draft = data.draft ?? fresh;
 
   const dayName = useMemo(() => {
     const day = data.routines.flatMap((r) => r.days).find((d) => d.id === draft.routineDayId);
@@ -50,8 +47,8 @@ export function SesionScreen({ query }: { query: Record<string, string> }) {
   const edit = (fn: (d: SessionDraft) => SessionDraft) => update((d) => setDraft(d, fn(structuredClone(d.draft ?? draft))));
 
   function discard() {
-    const fresh = newDraft(dayId);
-    update((d) => setDraft(d, fresh.draft));
+    update((d) => setDraft(d, null));
+    setFresh(newDraft(dayId).draft);
   }
 
   function finish() {
@@ -70,7 +67,7 @@ export function SesionScreen({ query }: { query: Record<string, string> }) {
       </div>
       {resumed && (
         <div className="card flex items-center justify-between gap-2 text-sm">
-          <span>Sesión en curso: podés seguir cargando.</span>
+          <span>Sesión sin terminar{draft.date !== localToday() ? ` del ${draft.date}` : ""}: podés seguir cargando.</span>
           <button type="button" onClick={() => { if (confirm("¿Descartar lo cargado y empezar de nuevo?")) discard(); }} className="text-danger">Descartar</button>
         </div>
       )}

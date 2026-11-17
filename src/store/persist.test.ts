@@ -1,54 +1,45 @@
 import { expect, test } from "vitest";
-import { createPersistence } from "./persist";
+import { createPersistence, StaleWriteError } from "./persist";
 import { emptyData } from "./seed";
 
 function fakeKv() {
   const store = new Map<string, unknown>();
-  let inFlight = 0;
-  let maxInFlight = 0;
-  let sets = 0;
   return {
-    kv: {
-      async get(k: string) { return store.get(k); },
-      async set(k: string, v: unknown) {
-        inFlight++; sets++;
-        maxInFlight = Math.max(maxInFlight, inFlight);
-        await new Promise((r) => setTimeout(r, 5));
-        store.set(k, v);
-        inFlight--;
-      },
-      async del(k: string) { store.delete(k); },
-    },
-    store, stats: () => ({ maxInFlight, sets }),
+    async get(k: string) { return store.get(k); },
+    async set(k: string, v: unknown) { store.set(k, v); },
+    async del(k: string) { store.delete(k); },
   };
 }
 
-test("load returns null when nothing stored, then what was saved", async () => {
-  const { kv } = fakeKv();
-  const p = createPersistence(kv);
+test("load returns null when nothing stored, then what was saved with its revision", async () => {
+  const p = createPersistence(fakeKv());
   expect(await p.load()).toBeNull();
   const d = emptyData();
-  await p.save(d);
-  expect(await p.load()).toEqual(d);
+  expect(await p.save(d, 0)).toBe(1);
+  expect(await p.load()).toEqual({ data: d, rev: 1 });
 });
 
-test("rapid saves are serialized and coalesced; last one wins", async () => {
-  const { kv, stats } = fakeKv();
-  const p = createPersistence(kv);
+test("a write based on a stale revision is refused and the stored data is kept", async () => {
+  const kv = fakeKv();
+  const tabA = createPersistence(kv);
+  const tabB = createPersistence(kv);
   const a = { ...emptyData(), settings: { lastAccountId: "a", lastCategoryId: { expense: null, income: null } } };
   const b = { ...a, settings: { ...a.settings, lastAccountId: "b" } };
-  const c = { ...a, settings: { ...a.settings, lastAccountId: "c" } };
-  void p.save(a); void p.save(b);
-  await p.save(c);
-  expect((await p.load())?.settings.lastAccountId).toBe("c");
-  expect(stats().maxInFlight).toBe(1);
-  expect(stats().sets).toBeLessThanOrEqual(2);
+  await tabA.save(a, 0);
+  await expect(tabB.save(b, 0)).rejects.toBeInstanceOf(StaleWriteError);
+  expect((await tabB.load())?.data.settings.lastAccountId).toBe("a");
+  expect(await tabB.save(b, 1)).toBe(2);
+});
+
+test("a legacy plain document loads as revision 0", async () => {
+  const kv = fakeKv();
+  await kv.set("organizador.data", emptyData());
+  expect((await createPersistence(kv).load())?.rev).toBe(0);
 });
 
 test("clearAll removes the data", async () => {
-  const { kv } = fakeKv();
-  const p = createPersistence(kv);
-  await p.save(emptyData());
+  const p = createPersistence(fakeKv());
+  await p.save(emptyData(), 0);
   await p.clearAll();
   expect(await p.load()).toBeNull();
 });

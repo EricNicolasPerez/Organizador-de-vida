@@ -1,0 +1,23 @@
+const { chromium } = require("playwright");
+(async () => {
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const p = await ctx.newPage();
+  const errors = []; p.on("pageerror", (e) => errors.push(e.message)); p.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  const base = "http://localhost:4173/Organizador-de-vida/";
+  await p.goto(base + "#/finanzas/cuentas"); await p.waitForSelector("h1");
+  await p.fill('input[name=name]', "Efectivo"); await p.fill('#initialBalance', "1000"); await p.click('text=Crear cuenta');
+  await p.waitForSelector('text=Efectivo');
+  await p.goto(base + "#/"); await p.click('[aria-label="Registrar movimiento"]');
+  await p.fill('#amount', "250,50"); await p.click('button:has-text("Guardar")');
+  await p.waitForTimeout(300);
+  const home = await p.textContent("main, body");
+  console.log("has 749,50:", home.includes("749,50"));
+  await p.reload(); await p.waitForSelector("h1");
+  console.log("after reload still 749,50:", (await p.textContent("body")).includes("749,50"));
+  await p.screenshot({ path: process.argv[2] });
+  await p.goto(base + "#/finanzas"); await p.waitForTimeout(200);
+  console.log("finanzas shows expense:", (await p.textContent("body")).includes("250,50"));
+  console.log("errors:", errors);
+  await b.close();
+})();

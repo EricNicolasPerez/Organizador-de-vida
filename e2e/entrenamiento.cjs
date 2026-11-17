@@ -1,0 +1,38 @@
+const { chromium } = require("playwright");
+(async () => {
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const p = await ctx.newPage();
+  const errors = []; p.on("pageerror", (e) => errors.push(e.message)); p.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  p.on("dialog", (d) => d.accept());
+  const base = "http://localhost:4173/Organizador-de-vida/";
+  const body = async () => (await p.textContent("body")) || "";
+  await p.goto(base + "#/entrenamiento/rutinas"); await p.waitForSelector("h1");
+  await p.fill('input[placeholder="Ej. Fuerza 3 días"]', "PPL"); await p.click('button:has-text("Crear")');
+  await p.waitForSelector('text=Agregar día');
+  await p.fill('input[placeholder^="Día A"]', "Día A"); await p.click('button:has-text("Agregar día")');
+  await p.click('summary:has-text("Agregar ejercicio")');
+  await p.fill('input[name=newName]', "Press banca"); await p.fill('input[name=targetSets]', "3"); await p.fill('input[name=targetReps]', "10"); await p.fill('input[name=targetWeight]', "50");
+  await p.click('button:has-text("Agregar")'); await p.waitForTimeout(200);
+  console.log("exercise listed:", (await body()).includes("Press banca") && (await body()).includes("3 series × 10"));
+  await p.goto(base + "#/"); await p.waitForTimeout(200);
+  console.log("home shows Día A:", (await body()).includes("Día A"));
+  await p.click('a:has-text("Empezar")'); await p.waitForSelector('h1:has-text("Día A")');
+  await p.fill('[aria-label="Kg serie 1"]', "22,5"); await p.waitForTimeout(300);
+  await p.reload(); await p.waitForSelector("h1");
+  const kg = await p.inputValue('[aria-label="Kg serie 1"]');
+  console.log("after reload kg:", kg, "| resumed banner:", (await body()).includes("Sesión sin terminar"));
+  await p.click('button:has-text("Terminar")'); await p.waitForSelector('h1');
+  console.log("history url:", p.url().includes("/entrenamiento/historial/"), "| shows 10 × 22,5 kg:", (await body()).includes("10 × 22,5 kg"));
+  await p.screenshot({ path: process.argv[2] });
+  await p.goto(base + "#/entrenamiento"); await p.waitForTimeout(200);
+  console.log("hoy te toca still Día A (wrap):", (await body()).includes("Día A") && (await body()).includes("Empezar"));
+  // Descartar: start session, type, discard, fresh
+  await p.click('a:has-text("Empezar")'); await p.waitForSelector('h1');
+  await p.fill('[aria-label="Reps serie 1"]', "99"); await p.waitForTimeout(200);
+  await p.reload(); await p.waitForSelector("h1");
+  await p.click('button:has-text("Descartar")'); await p.waitForTimeout(200);
+  console.log("after discard reps prefilled from last session (10):", await p.inputValue('[aria-label="Reps serie 1"]'));
+  console.log("errors:", errors);
+  await b.close();
+})();
