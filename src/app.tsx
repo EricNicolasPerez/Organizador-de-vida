@@ -1,3 +1,46 @@
+import { useEffect, useState } from "react";
+import { href, matchRoute, useHashRoute } from "./router";
+import { initStore, useData } from "./store/store";
+import { BottomNav } from "./components/bottom-nav";
+import { QuickAdd } from "./components/quick-add";
+import { HomeScreen } from "./screens/home";
+import { FinanzasScreen } from "./screens/finanzas";
+import { CuentasScreen } from "./screens/cuentas";
+import { CategoriasScreen } from "./screens/categorias";
+import { MovimientoScreen } from "./screens/movimiento";
+import { EntrenamientoScreen } from "./screens/entrenamiento";
+
+function Screen({ path, query }: { path: string; query: Record<string, string> }) {
+  let p: Record<string, string> | null;
+  if (path === "/") return <HomeScreen />;
+  if (path === "/finanzas") return <FinanzasScreen query={query} />;
+  if (path === "/finanzas/cuentas") return <CuentasScreen />;
+  if (path === "/finanzas/categorias") return <CategoriasScreen />;
+  if ((p = matchRoute("/finanzas/movimiento/:id", path))) return <MovimientoScreen id={p.id} />;
+  if (path.startsWith("/entrenamiento")) return <EntrenamientoScreen />;
+  return <p className="text-muted">Página no encontrada. <a href={href("/")} className="text-accent">Ir al inicio</a></p>;
+}
+
 export function App() {
-  return <main className="p-4"><h1 className="text-2xl font-bold">Organizador</h1></main>;
+  const [ready, setReady] = useState(false);
+  const route = useHashRoute();
+  const { accounts, categories } = useData();
+
+  useEffect(() => {
+    initStore().finally(() => setReady(true));
+  }, []);
+
+  if (!ready) return <main className="p-6 text-muted">Cargando…</main>;
+
+  return (
+    <div className="mx-auto min-h-dvh max-w-lg px-4 pb-24 pt-4">
+      <header className="mb-4 flex items-center justify-between">
+        <a href={href("/")} className="text-lg font-bold">Organizador</a>
+        <a href={href("/ajustes")} className="text-sm text-muted">Ajustes</a>
+      </header>
+      <Screen path={route.path} query={route.query} />
+      <QuickAdd accounts={accounts} categories={categories} />
+      <BottomNav path={route.path} />
+    </div>
+  );
 }
