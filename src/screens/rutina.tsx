@@ -7,6 +7,7 @@ import {
   addDay, addDayExercise, deleteDay, deleteRoutine, moveDay, removeDayExercise, renameDay, renameRoutine, setActiveRoutine,
 } from "@/store/ops/training";
 import { RenameForm } from "./cuentas";
+import { formatSetValue } from "@/lib/training/set-input";
 
 const MEASURE_LABEL: Record<Measure, string> = { reps_weight: "reps × kg", time: "tiempo", distance: "distancia" };
 
@@ -44,7 +45,7 @@ export function RutinaScreen({ id }: { id: string }) {
                     {ex?.name ?? "Ejercicio borrado"}{" "}
                     <span className="text-muted">
                       {e.targetSets} series{measure === "reps_weight" && e.targetReps ? ` × ${e.targetReps}` : ""}
-                      {e.targetWeight ? ` · ${e.targetWeight} kg` : ""}
+                      {e.targetWeight ? ` · ${formatSetValue(e.targetWeight)} kg` : ""}
                       {measure !== "reps_weight" ? ` · ${MEASURE_LABEL[measure]}` : ""}
                     </span>
                   </span>

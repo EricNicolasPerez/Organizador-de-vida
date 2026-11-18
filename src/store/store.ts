@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { emptyData } from "./seed";
+import { withDefaultRoutines } from "./default-routines";
 import { persistence, StaleWriteError } from "./persist";
 import type { AppData } from "./types";
 
@@ -116,6 +117,8 @@ export async function initStore(): Promise<void> {
     store.markLoadFailed();
     return;
   }
+  // Pre-load the built-in gym routines once (also for people who already used the app).
+  if (!store.getData().settings.defaultRoutinesAdded) store.update(withDefaultRoutines);
   try { void navigator.storage?.persist?.(); } catch { /* unsupported */ }
   const onWake = () => { if (document.visibilityState === "visible") void store.refresh(); };
   document.addEventListener("visibilitychange", onWake);
