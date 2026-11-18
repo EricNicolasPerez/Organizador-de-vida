@@ -21,6 +21,6 @@ export function emptyData(): AppData {
     routines: [],
     sessions: [],
     draft: null,
-    settings: { lastAccountId: null, lastCategoryId: { expense: null, income: null } },
+    settings: { lastAccountId: null, lastCategoryId: { expense: null, income: null }, defaultRoutinesAdded: false },
   };
 }

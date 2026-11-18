@@ -49,6 +49,8 @@ export interface Session {
 export interface Settings {
   lastAccountId: string | null;
   lastCategoryId: Record<"expense" | "income", string | null>;
+  /** The built-in gym routines were added once (never re-added after the user deletes them). */
+  defaultRoutinesAdded?: boolean;
 }
 
 export interface AppData {

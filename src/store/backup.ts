@@ -31,6 +31,7 @@ export function parseBackup(text: string): { ok: true; data: AppData } | { ok: f
     settings: {
       lastAccountId: settings.lastAccountId ?? null,
       lastCategoryId: { expense: settings.lastCategoryId?.expense ?? null, income: settings.lastCategoryId?.income ?? null },
+      defaultRoutinesAdded: settings.defaultRoutinesAdded ?? false,
     },
   };
   return { ok: true, data };
